@@ -12,6 +12,7 @@ HTTP_PORT="<%= node[:staticd][:http_port] %>"
 BUILD_CACHE_PATH="<%= node[:staticd][:build_cache] %>"
 ROUTER_CMD="<%= node[:staticd][:router] %>"
 GLOBAL_DOMAIN=$(hostname --fqdn)
+BUNDLER_CACHE="/tmp/vendor/bundler"
 
 if [ -z $1 ] || [ -z $2 ]; then
 cat <<EOF
@@ -29,12 +30,37 @@ echo ""
 echo ">> Receiving '${name}' v${version}..."
 rm --recursive --force "${BUILD_CACHE_PATH}/${name}"
 mkdir --parent "${BUILD_CACHE_PATH}/${name}"
-cat | tar --extract --directory "${BUILD_CACHE_PATH}/${name}" --file -
+cat | tar --touch --extract --directory "${BUILD_CACHE_PATH}/${name}" --file -
 rm --recursive --force "${BUILD_CACHE_PATH}/${name}/.git"
 
-echo ">> Deploying to '${domain}'"
+type="unknown"
+if [ -f ${BUILD_CACHE_PATH}/${name}/index.html ]; then
+  echo "   Static website detected (index.html)"
+  type="static"
+elif [ -f ${BUILD_CACHE_PATH}/${name}/config.rb ]; then
+  echo "   Middleman website detected (config.rb)"
+  type="middleman"
+else
+  echo "   Unknown configuration (no index.html)"
+fi
+
+deploy_cache_path="${BUILD_CACHE_PATH}/${name}"
+case "$type" in
+  middleman)
+    echo ">> Building middleman website..."
+    deploy_cache_path="${BUILD_CACHE_PATH}/${name}/build"
+    rm --recursive --force $deploy_cache_path
+    cd "${BUILD_CACHE_PATH}/${name}"
+    echo ">> Running 'bundle install'"
+    bundle install --path $BUNDLER_CACHE | sed --unbuffered 's/^/   /;/^\s*$/d'
+    echo ">> Running 'middleman build'"
+    bundle exec middleman build | sed --unbuffered 's/^      /   /;/^\s*$/d'
+    ;;
+esac
+
+echo ">> Deploying to '${domain}'..."
 rm --recursive --force "${HTTP_ROOT_PATH}/${name}"
-mv "${BUILD_CACHE_PATH}/${name}" "${HTTP_ROOT_PATH}/${name}"
+mv $deploy_cache_path "${HTTP_ROOT_PATH}/${name}"
 $($ROUTER_CMD $name $domain)
 
 echo ">> Done."

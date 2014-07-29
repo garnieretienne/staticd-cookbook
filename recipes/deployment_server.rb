@@ -137,3 +137,24 @@ service "gitreceived" do
   action :start
   subscribes :restart, "template[/etc/init/gitreceived.conf]", :delayed
 end
+
+# Install ruby to use the "middleman" gem
+package "ruby" do
+  action :install
+end
+
+# Install ruby-dev to use gem utility
+package "ruby-dev" do
+  action :install
+end
+
+# Install build-essential to be able to allow rubygems
+# to install middleman dependencies
+package "build-essential" do
+  action :install
+end
+
+# Install the "bundler" gem needed by middleman projects
+gem_package "bundler" do
+  action :install
+end
