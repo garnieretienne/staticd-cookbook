@@ -1,0 +1,24 @@
+# gitreceived - SSH server for GIT files management purpose
+#
+# An SSH server made specifically for accepting git pushes that
+# will trigger an auth script and then a receiver script to handle the push.
+
+description "SSH server fot GIT files management purpose"
+
+console output
+
+start on runlevel [235]
+stop on runlevel [!$RUNLEVEL]
+
+setuid <%= node[:staticd][:user] %>
+setgid <%= node[:staticd][:user] %>
+
+exec /usr/local/bin/gitreceived \
+  -r="<%= node[:staticd][:git_cache] %>" \
+  -p="<%= node[:staticd][:git_port] %>" \
+  -k="<%= node[:staticd][:git_cert] %>" \
+  "<%= node[:staticd][:authchecker] %>" \
+  "<%= node[:staticd][:receiver] %>" \
+  2>&1 | logger
+
+respawn

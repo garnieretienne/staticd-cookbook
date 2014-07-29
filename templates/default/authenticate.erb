@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Script used to authenticate an user using its name and private key
+#
+# It will check if the key is authorized, and exit with status 0 if it is.
+# It will be called with the following arguments:
+# * USER is the username
+# * KEY is its public key
+
+ALLOWED_KEYS_DIR="<%= node[:staticd][:allowed_keys] %>"
+
+if [ -z $1 ] || [ -z $2 ]; then
+cat <<EOF
+  Usage: authenticate USER KEY
+EOF
+  exit 0
+fi
+
+user=$1
+provided_key=$(echo "${2}" | cut -d ' ' -f 2)
+registered_key=$(cat ${ALLOWED_KEYS_DIR}/${user}.pub | cut -d ' ' -f 2)
+
+if [ "$provided_key" == "$registered_key" ]; then
+  exit 0
+else
+  exit 1
+fi

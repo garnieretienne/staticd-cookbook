@@ -1,0 +1,15 @@
+#!/bin/bash
+#
+# Simply print "Hello World" string to STDOUT and exit with a 0 exit status
+
+echo "Hello World"
+
+if [ ! -z $1 ]; then
+  echo "1st parameter: ${1}"
+fi
+
+if [ ! -z $2 ]; then
+  echo "2nd parameter: ${2}"
+fi
+
+exit 0

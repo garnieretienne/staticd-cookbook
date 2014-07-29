@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# Unpackage a packaged website to its HTTP service root location
+#
+# It will get a tar stream of the repo via stdin and the following arguments:
+# * NAME is the name of the website that was pushed.
+# * VERSION is the version of that website.
+# It will also notify the `router` script with the NAME and DOMAIN args at the end of execution.
+
+HTTP_ROOT_PATH="<%= node[:staticd][:www] %>"
+HTTP_PORT="<%= node[:staticd][:http_port] %>"
+BUILD_CACHE_PATH="<%= node[:staticd][:build_cache] %>"
+ROUTER_CMD="<%= node[:staticd][:router] %>"
+GLOBAL_DOMAIN=$(hostname --fqdn)
+
+if [ -z $1 ] || [ -z $2 ]; then
+cat <<EOF
+  Usage: cat website.tar | deploy PATH COMMIT
+EOF
+  exit 0
+fi
+
+name=$1
+version=$2
+domain="${name}.${GLOBAL_DOMAIN}"
+
+echo ""
+
+echo ">> Receiving '${name}' v${version}..."
+rm --recursive --force "${BUILD_CACHE_PATH}/${name}"
+mkdir --parent "${BUILD_CACHE_PATH}/${name}"
+cat | tar --extract --directory "${BUILD_CACHE_PATH}/${name}" --file -
+rm --recursive --force "${BUILD_CACHE_PATH}/${name}/.git"
+
+echo ">> Deploying to '${domain}'"
+rm --recursive --force "${HTTP_ROOT_PATH}/${name}"
+mv "${BUILD_CACHE_PATH}/${name}" "${HTTP_ROOT_PATH}/${name}"
+$($ROUTER_CMD $name $domain)
+
+echo ">> Done."
+
+if [ "$HTTP_PORT" -eq "80" ]; then
+  echo "   http://${domain}"
+else
+  echo "   http://${domain}:${HTTP_PORT}"
+fi
+
+echo ""

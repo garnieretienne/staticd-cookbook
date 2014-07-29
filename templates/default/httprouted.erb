@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Listen for modification on the web service configuration.
+#
+# This script monitor the staticd configuration folder for change
+# and reload the nginx service after validating its new configuration,
+
+STATICD_SITES_DIR="<%= node[:staticd][:sites] %>"
+NGINX_CONF_FILE="<%= node['nginx']['dir']  %>/nginx.conf"
+NGINX_PID_FILE="<%= node['nginx']['pid'] %>"
+
+while true
+do
+  inotifywait --event modify --event create --event delete $STATICD_SITES_DIR &> /dev/null
+  nginx -c $NGINX_CONF_FILE -t &> /dev/null
+  if [ $? -eq 0 ]
+  then
+    nginx_pid=$(cat "${NGINX_PID_FILE}")
+    if [[ $nginx_pid =~ '^[0-9]+$' ]]; then
+      echo "Cannot reload web service with new configuration (nginx not running)" 1>&2
+    else
+      echo "Reloading web service with new configuration"
+      service nginx reload &> /dev/null
+    fi
+  else
+    echo "Cannot reload web service with new configuration (bad config)" 1>&2
+  fi
+done

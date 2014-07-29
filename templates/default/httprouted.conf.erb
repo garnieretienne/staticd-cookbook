@@ -1,0 +1,15 @@
+# httprouted - HTTP Route deamon
+#
+# A monitoring script that will reload NGINX web server when staticd sites
+# configuration is updated.
+
+description "HTTP Route deamon"
+
+console output
+
+start on runlevel [2345]
+stop on runlevel [!$RUNLEVEL]
+
+exec /usr/local/bin/httprouted 2>&1 | logger
+
+respawn
