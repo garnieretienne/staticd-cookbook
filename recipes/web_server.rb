@@ -56,6 +56,15 @@ end
 # Install the NGINX web server
 include_recipe "nginx"
 
+# Attempt to solve blocking nginx process after deployment
+bash "kill_ghost_nginx" do
+  code <<-EOF
+    killall nginx
+  EOF
+  action :nothing
+  subscribes :run, "package[#{node['nginx']['package_name']}]", :immediately
+end
+
 # Add a vhost folder to NGINX dedicated to staticd hosting
 template "/etc/nginx/conf.d/staticd.conf" do
   source "staticd.conf.erb"
