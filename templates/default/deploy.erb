@@ -7,6 +7,25 @@
 # * VERSION is the version of that website.
 # It will also notify the `router` script with the NAME and DOMAIN args at the end of execution.
 
+# Bash function used to parse YAML files.
+# Source: http://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
+function parse_yaml {
+  local prefix=$2
+  local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
+  sed -ne "s|^\($s\):|\1|" \
+      -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
+      -e "s|^\($s\)\($w\)$s:$s\(.*\)$s\$|\1$fs\2$fs\3|p"  $1 |
+  awk -F$fs '{
+    indent = length($1)/2;
+    vname[indent] = $2;
+    for (i in vname) {if (i > indent) {delete vname[i]}}
+    if (length($3) > 0) {
+       vn=""; for (i=0; i<indent; i++) {vn=(vn)(vname[i])("_")}
+       printf("%s%s%s=\"%s\"\n", "'$prefix'",vn, $2, $3);
+    }
+  }'
+}
+
 HTTP_ROOT_PATH="<%= node[:staticd][:www] %>"
 HTTP_PORT="<%= node[:staticd][:http_port] %>"
 BUILD_CACHE_PATH="<%= node[:staticd][:build_cache] %>"
@@ -27,12 +46,14 @@ domain="${name}.${GLOBAL_DOMAIN}"
 
 echo ""
 
+# Unpack the website sources
 echo ">> Receiving '${name}' v${version}..."
 rm --recursive --force "${BUILD_CACHE_PATH}/${name}"
 mkdir --parent "${BUILD_CACHE_PATH}/${name}"
 cat | tar --touch --extract --directory "${BUILD_CACHE_PATH}/${name}" --file -
 rm --recursive --force "${BUILD_CACHE_PATH}/${name}/.git"
 
+# Detect what kind of source it is
 type="unknown"
 if [ -f ${BUILD_CACHE_PATH}/${name}/index.html ]; then
   echo "   Static website detected (index.html)"
@@ -44,31 +65,52 @@ else
   echo "   Unknown configuration (no index.html)"
 fi
 
+# Read options from staticd.yml file
+if [ -f ${BUILD_CACHE_PATH}/${name}/staticd.yml ]; then
+  echo ">> Reading options from staticd.yml..."
+  echo $(cat ${BUILD_CACHE_PATH}/${name}/staticd.yml) | sed --unbuffered 's/^/   /;/^\s*$/d'
+  eval $(parse_yaml ${BUILD_CACHE_PATH}/${name}/staticd.yml option_)
+fi
+
 deploy_cache_path="${BUILD_CACHE_PATH}/${name}"
 case "$type" in
+
+  # Build middleman website if detected as so
   middleman)
     echo ">> Building middleman website..."
     deploy_cache_path="${BUILD_CACHE_PATH}/${name}/build"
     rm --recursive --force $deploy_cache_path
     cd "${BUILD_CACHE_PATH}/${name}"
-    echo ">> Running 'bundle install'"
+    echo ">> Running 'bundle install'..."
     bundle install --path $BUNDLER_CACHE | sed --unbuffered 's/^/   /;/^\s*$/d'
-    echo ">> Running 'middleman build'"
+    echo ">> Running 'middleman build'..."
     bundle exec middleman build | sed --unbuffered 's/^      /   /;/^\s*$/d'
     ;;
+
 esac
 
-echo ">> Deploying to '${domain}'..."
+# Move source into HTTP service directory
+if [ -n "${option_domain}" ]; then
+  echo ">> Deploying to '${domain}' and '${option_domain}'..."
+else
+  echo ">> Deploying to '${domain}'..."
+fi
 rm --recursive --force "${HTTP_ROOT_PATH}/${name}"
 mv $deploy_cache_path "${HTTP_ROOT_PATH}/${name}"
-$($ROUTER_CMD $name $domain)
+$($ROUTER_CMD $name $domain $option_domain)
 
 echo ">> Done."
 
 if [ "$HTTP_PORT" -eq "80" ]; then
   echo "   http://${domain}"
+  if [ -n "${option_domain}" ]; then
+    echo "   http://${option_domain}"
+  fi
 else
   echo "   http://${domain}:${HTTP_PORT}"
+  if [ -n "${option_domain}" ]; then
+    echo "   http://${option_domain}:${HTTP_PORT}"
+  fi
 fi
 
 echo ""

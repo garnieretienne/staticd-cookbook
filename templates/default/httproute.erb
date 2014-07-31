@@ -7,6 +7,7 @@
 # It takes the following arguments:
 # * NAME
 # * DOMAIN
+# * CUSTOM_DOMAIN
 
 STATICD_SITES_DIR="<%= node[:staticd][:sites] %>"
 STATICD_WWW_DIR="<%= node[:staticd][:www] %>"
@@ -14,19 +15,20 @@ HTTP_PORT="<%= node[:staticd][:http_port] %>"
 
 if [ -z $1 ]; then
 cat <<EOF
-  Usage: httproute NAME
+  Usage: httproute NAME DOMAIN CUSTOM_DOMAIN
 EOF
   exit 0
 fi
 
 name=$1
 domain=$2
+custom_domain=$3
 config_file="${STATICD_SITES_DIR}/${name}"
 
 cat > "$config_file" <<EOF
 server {
   listen   ${HTTP_PORT};
-  server_name  ${domain};
+  server_name  ${domain} ${custom_domain};
   access_log  /var/log/nginx/${domain}.log;
 
   location / {
