@@ -7,6 +7,9 @@
 # * VERSION is the version of that website.
 # It will also notify the `router` script with the NAME and DOMAIN args at the end of execution.
 
+# Ugly fix for random "couldn't find HOME environment -- expanding `~'" errors in rubygems/ruby
+export HOME=/dev/null
+
 # Bash function used to parse YAML files.
 # Source: http://stackoverflow.com/questions/5014632/how-can-i-parse-a-yaml-file-from-a-linux-shell-script
 function parse_yaml {
