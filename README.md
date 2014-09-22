@@ -19,6 +19,10 @@ cd staticd-solo
 
 ## Add the 'staticd' cookbook to your Berksfile
 
+First thing to do is adding an API source to your Berksfile (even if not used by your berkshelf config):
+`echo "source 'https://supermarket.getchef.com'" > Berksfile`
+
+You can now add the staticd cookbook to your Berksfile:
 `echo "cookbook 'staticd', git: 'https://github.com/garnieretienne/staticd-cookbook.git'" >> Berksfile`
 
 ## Adding the `staticd::default` recipe to the run list for you server
